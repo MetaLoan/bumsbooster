@@ -54,23 +54,83 @@
           {{ boost }}
         </div>
         
+        <!-- Metal Accelerator: Two buttons or single countdown button -->
+        <div v-if="type === 'metal'" class="flex gap-2 flex-1">
+          <!-- Show two buttons when not processing and not in cooldown -->
+          <template v-if="!isProcessing && !localCooldown">
+            <button 
+              :disabled="!isAvailable || isLocked || isClaimed"
+              :class="[
+                'text-sm font-bold py-2 px-3 rounded flex-1 flex items-center justify-center gap-0',
+                (isAvailable && !isLocked && !isClaimed)
+                  ? 'bg-white hover:bg-gray-200 text-black shadow-lg transition-colors clip-path-tech' 
+                  : 'bg-surface-border text-white cursor-not-allowed border border-white/5'
+              ]"
+              @click="handleMetalClaim(1.00, '100')"
+            >
+              <span class="flex items-center gap-0">
+                CLAIM 100
+                <img v-if="isAvailable && !isClaimed" src="/stars.png" alt="" class="h-4 w-auto object-contain ml-0" />
+              </span>
+            </button>
+            <button 
+              :disabled="!isAvailable || isLocked || isClaimed"
+              :class="[
+                'text-sm font-bold py-2 px-3 rounded flex-1 flex items-center justify-center gap-0',
+                (isAvailable && !isLocked && !isClaimed)
+                  ? 'bg-white hover:bg-gray-200 text-black shadow-lg transition-colors clip-path-tech' 
+                  : 'bg-surface-border text-white cursor-not-allowed border border-white/5'
+              ]"
+              @click="handleMetalClaim(0.01, '1')"
+            >
+              <span class="flex items-center gap-0">
+                CLAIM 1
+                <img v-if="isAvailable && !isClaimed" src="/toncoin.png" alt="" class="h-4 w-auto object-contain ml-0" />
+              </span>
+            </button>
+          </template>
+          
+          <!-- Show processing spinner -->
+          <button 
+            v-else-if="isProcessing"
+            disabled
+            class="text-sm font-bold py-2 px-4 rounded flex-1 flex items-center justify-center bg-surface-border text-white cursor-not-allowed border border-white/5"
+          >
+            <span class="material-symbols-outlined animate-spin text-[16px]">sync</span>
+            <span class="ml-2">Processing...</span>
+          </button>
+          
+          <!-- Show single countdown button after payment success -->
+          <button 
+            v-else
+            disabled
+            :class="[
+              'text-sm font-bold py-2 px-4 rounded flex-1 flex items-center justify-center font-mono',
+              'bg-surface-border text-white cursor-not-allowed border border-white/5'
+            ]"
+          >
+            <span class="material-symbols-outlined text-[16px]">timer</span>
+            <span class="ml-2">{{ countdownText }}</span>
+          </button>
+        </div>
+        
+        <!-- Other Accelerators: Single button -->
         <button 
-          :disabled="localCooldown || !isAvailable || isLocked || isClaimed"
+          v-else
+          :disabled="localCooldown || !isAvailable || isLocked || isClaimed || isProcessing"
           :class="[
-            'text-sm font-bold py-2 px-4 rounded flex-1 flex items-center justify-center',
-            (isAvailable && !localCooldown && !isLocked && !isClaimed)
+            'text-sm font-bold py-2 px-4 rounded flex-1 flex items-center justify-center gap-2',
+            (isAvailable && !localCooldown && !isLocked && !isClaimed && !isProcessing)
               ? 'bg-white hover:bg-gray-200 text-black shadow-lg transition-colors clip-path-tech' 
               : 'bg-surface-border text-white cursor-not-allowed border border-white/5',
-            (isCooldown || localCooldown) ? 'font-mono' : '',
-            type === 'metal' && !localCooldown && isAvailable && !isClaimed ? 'gap-0' : 'gap-2'
+            (isCooldown || localCooldown) ? 'font-mono' : ''
           ]"
           @click="handleClaim"
         >
-          <span v-if="localCooldown || (buttonIcon && (isLocked || !isAvailable))" class="material-symbols-outlined text-[16px]">{{ localCooldown ? 'timer' : buttonIcon }}</span>
-          <span class="flex items-center gap-0">
-            {{ isClaimed && type === 'crystal' ? 'CLAIMED' : (localCooldown ? countdownText : buttonText) }}
-            <img v-if="type === 'metal' && !localCooldown && isAvailable && !isClaimed" src="/stars.png" alt="" class="h-4 w-auto object-contain ml-0" />
-          </span>
+          <span v-if="isProcessing" class="material-symbols-outlined animate-spin text-[16px]">sync</span>
+          <span v-else-if="localCooldown || (buttonIcon && (isLocked || !isAvailable))" class="material-symbols-outlined text-[16px]">{{ localCooldown ? 'timer' : buttonIcon }}</span>
+          <span v-if="isProcessing">Processing...</span>
+          <span v-else>{{ isClaimed && type === 'crystal' ? 'CLAIMED' : (localCooldown ? countdownText : buttonText) }}</span>
         </button>
       </div>
 
@@ -100,6 +160,10 @@ const emit = defineEmits<{
 const localCooldown = ref(false);
 const countdownSeconds = ref(0);
 let countdownInterval: number | null = null;
+
+// Metal Accelerator payment processing state
+const isProcessing = ref(false);
+const metalClaimType = ref<'100' | '1' | null>(null);
 
 // Load claim count from localStorage
 const loadClaimCount = () => {
@@ -152,58 +216,124 @@ const countdownText = computed(() => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 });
 
-const handleClaim = () => {
-  if (isAvailable.value) {
-    // For Crystal Accelerator, mark as claimed
-    if (props.type === 'crystal') {
-      isClaimed.value = true;
-      localStorage.setItem('accelerator_claimed_crystal', 'true');
-    }
-    
-    // Increase claim count
-    claimCount.value++;
-    const storageKey = `accelerator_count_${props.type}`;
-    localStorage.setItem(storageKey, String(claimCount.value));
-    
-    // Extract boost value from boost string (e.g., "+5.00%" -> 5.00)
-    const boostValue = parseFloat(props.boost.replace(/[+%]/g, ''));
-    emit('weightIncrease', boostValue);
-    
-    // Only start cooldown if not Crystal (Crystal doesn't have cooldown after claim)
-    if (props.type !== 'crystal') {
-      localCooldown.value = true;
-      const duration = getCooldownDuration();
-      countdownSeconds.value = duration;
-      
-      // Save to localStorage (only for long cooldowns)
+// Handle Metal Accelerator claim with payment processing
+const handleMetalClaim = async (boost: number, claimType: '100' | '1') => {
+  if (!isAvailable.value || isProcessing.value) return;
+  
+  isProcessing.value = true;
+  metalClaimType.value = claimType;
+  
+  // Simulate payment processing (2 seconds)
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Payment success - proceed with claim
+  isProcessing.value = false;
+  
+  // Increase claim count
+  claimCount.value++;
+  const storageKey = `accelerator_count_${props.type}`;
+  localStorage.setItem(storageKey, String(claimCount.value));
+  
+  // Emit weight increase
+  emit('weightIncrease', boost);
+  
+  // Start cooldown
+  localCooldown.value = true;
+  const duration = getCooldownDuration();
+  countdownSeconds.value = duration;
+  
+  // Save to localStorage (only for long cooldowns)
+  if (duration >= 60) {
+    const cooldownKey = `accelerator_cooldown_${props.type}`;
+    const endTime = Date.now() + countdownSeconds.value * 1000;
+    localStorage.setItem(cooldownKey, String(endTime));
+  }
+  
+  // Start countdown
+  countdownInterval = setInterval(() => {
+    if (countdownSeconds.value > 0) {
+      countdownSeconds.value--;
+      // Update localStorage for long cooldowns
       if (duration >= 60) {
-        const storageKey = `accelerator_cooldown_${props.type}`;
-        const endTime = Date.now() + countdownSeconds.value * 1000;
-        localStorage.setItem(storageKey, String(endTime));
+        const cooldownKey = `accelerator_cooldown_${props.type}`;
+        localStorage.setItem(cooldownKey, String(Date.now() + countdownSeconds.value * 1000));
       }
-      
-      // Start countdown
-      countdownInterval = setInterval(() => {
-        if (countdownSeconds.value > 0) {
-          countdownSeconds.value--;
-          // Update localStorage for long cooldowns
-          if (duration >= 60) {
-            const storageKey = `accelerator_cooldown_${props.type}`;
-            localStorage.setItem(storageKey, String(Date.now() + countdownSeconds.value * 1000));
-          }
-        } else {
-          localCooldown.value = false;
-          if (duration >= 60) {
-            const storageKey = `accelerator_cooldown_${props.type}`;
-            localStorage.removeItem(storageKey);
-          }
-          if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-          }
-        }
-      }, 1000);
+    } else {
+      localCooldown.value = false;
+      metalClaimType.value = null;
+      if (duration >= 60) {
+        const cooldownKey = `accelerator_cooldown_${props.type}`;
+        localStorage.removeItem(cooldownKey);
+      }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
     }
+  }, 1000);
+};
+
+const handleClaim = async (customBoost?: number) => {
+  if (!isAvailable.value || props.type === 'metal' || isProcessing.value) return;
+  
+  // Start processing
+  isProcessing.value = true;
+  
+  // Simulate payment processing (2 seconds)
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Payment success - proceed with claim
+  isProcessing.value = false;
+  
+  // For Crystal Accelerator, mark as claimed
+  if (props.type === 'crystal') {
+    isClaimed.value = true;
+    localStorage.setItem('accelerator_claimed_crystal', 'true');
+  }
+  
+  // Increase claim count
+  claimCount.value++;
+  const storageKey = `accelerator_count_${props.type}`;
+  localStorage.setItem(storageKey, String(claimCount.value));
+  
+  // Use custom boost value if provided, otherwise extract from boost string
+  const boostValue = customBoost !== undefined ? customBoost : parseFloat(props.boost.replace(/[+%]/g, ''));
+  emit('weightIncrease', boostValue);
+  
+  // Only start cooldown if not Crystal (Crystal doesn't have cooldown after claim)
+  if (props.type !== 'crystal') {
+    localCooldown.value = true;
+    const duration = getCooldownDuration();
+    countdownSeconds.value = duration;
+    
+    // Save to localStorage (only for long cooldowns)
+    if (duration >= 60) {
+      const cooldownKey = `accelerator_cooldown_${props.type}`;
+      const endTime = Date.now() + countdownSeconds.value * 1000;
+      localStorage.setItem(cooldownKey, String(endTime));
+    }
+    
+    // Start countdown
+    countdownInterval = setInterval(() => {
+      if (countdownSeconds.value > 0) {
+        countdownSeconds.value--;
+        // Update localStorage for long cooldowns
+        if (duration >= 60) {
+          const cooldownKey = `accelerator_cooldown_${props.type}`;
+          localStorage.setItem(cooldownKey, String(Date.now() + countdownSeconds.value * 1000));
+        }
+      } else {
+        localCooldown.value = false;
+        if (duration >= 60) {
+          const cooldownKey = `accelerator_cooldown_${props.type}`;
+          localStorage.removeItem(cooldownKey);
+        }
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+      }
+    }, 1000);
   }
 };
 
