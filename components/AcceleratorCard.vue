@@ -152,7 +152,9 @@ export interface AcceleratorProps {
   buttonIcon?: string;
 }
 
-const props = defineProps<AcceleratorProps>();
+const props = defineProps<AcceleratorProps & {
+  currentWeight?: number;
+}>();
 const emit = defineEmits<{
   weightIncrease: [boost: number]
 }>();
@@ -173,15 +175,31 @@ const loadClaimCount = () => {
 };
 const claimCount = ref(loadClaimCount());
 
-// Load claimed status for Crystal Accelerator
-const loadClaimedStatus = () => {
+// Load claimed milestones for Crystal Accelerator
+const loadClaimedMilestones = () => {
   if (props.type === 'crystal') {
-    const storageKey = `accelerator_claimed_crystal`;
-    return localStorage.getItem(storageKey) === 'true';
+    const storageKey = 'crystal_claimed_milestones';
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : [];
+  }
+  return [];
+};
+const claimedMilestones = ref<number[]>(loadClaimedMilestones());
+
+// Check if Crystal is claimed at current milestone
+const currentMilestone = computed(() => {
+  if (props.type === 'crystal' && props.currentWeight !== undefined && props.currentWeight >= 10) {
+    return Math.floor(props.currentWeight / 10) * 10;
+  }
+  return 10; // Default to first milestone
+});
+
+const isClaimed = computed(() => {
+  if (props.type === 'crystal') {
+    return claimedMilestones.value.includes(currentMilestone.value);
   }
   return false;
-};
-const isClaimed = ref(loadClaimedStatus());
+});
 
 // Get cooldown duration based on accelerator type
 const getCooldownDuration = () => {
@@ -234,8 +252,9 @@ const handleMetalClaim = async (boost: number, claimType: '100' | '1') => {
   const storageKey = `accelerator_count_${props.type}`;
   localStorage.setItem(storageKey, String(claimCount.value));
   
-  // Emit weight increase
-  emit('weightIncrease', boost);
+  // Emit weight increase (ensure boost is a valid number)
+  const validBoost = isNaN(boost) ? 0 : boost;
+  emit('weightIncrease', validBoost);
   
   // Start cooldown
   localCooldown.value = true;
@@ -285,10 +304,13 @@ const handleClaim = async (customBoost?: number) => {
   // Payment success - proceed with claim
   isProcessing.value = false;
   
-  // For Crystal Accelerator, mark as claimed
-  if (props.type === 'crystal') {
-    isClaimed.value = true;
-    localStorage.setItem('accelerator_claimed_crystal', 'true');
+  // For Crystal Accelerator, mark current milestone as claimed
+  if (props.type === 'crystal' && props.currentWeight !== undefined) {
+    const milestone = Math.floor(props.currentWeight / 10) * 10;
+    if (!claimedMilestones.value.includes(milestone)) {
+      claimedMilestones.value.push(milestone);
+      localStorage.setItem('crystal_claimed_milestones', JSON.stringify(claimedMilestones.value));
+    }
   }
   
   // Increase claim count
@@ -297,7 +319,13 @@ const handleClaim = async (customBoost?: number) => {
   localStorage.setItem(storageKey, String(claimCount.value));
   
   // Use custom boost value if provided, otherwise extract from boost string
-  const boostValue = customBoost !== undefined ? customBoost : parseFloat(props.boost.replace(/[+%]/g, ''));
+  let boostValue: number;
+  if (customBoost !== undefined) {
+    boostValue = isNaN(customBoost) ? 0 : customBoost;
+  } else {
+    const parsed = parseFloat(props.boost.replace(/[+%]/g, ''));
+    boostValue = isNaN(parsed) ? 0 : parsed;
+  }
   emit('weightIncrease', boostValue);
   
   // Only start cooldown if not Crystal (Crystal doesn't have cooldown after claim)

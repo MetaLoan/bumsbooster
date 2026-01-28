@@ -33,13 +33,25 @@ const handleWeightIncrease = (boost: number) => {
   emit('weightIncrease', boost);
 };
 
-// Determine Crystal Accelerator status based on weight
+// Calculate current milestone (10% multiples)
+const currentMilestone = computed(() => {
+  return Math.floor(props.weight / 10) * 10;
+});
+
+// Check if Crystal Accelerator can be claimed at current milestone
+// Crystal can be claimed at each 10% milestone
 const crystalStatus = computed(() => {
   return props.weight >= 10 ? 'available' : 'locked';
 });
 
 const crystalButtonText = computed(() => {
-  return props.weight >= 10 ? 'FREE CLAIM' : '10% WEIGHT BOOST TO UNLOCK';
+  if (props.weight < 10) {
+    return '10% WEIGHT BOOST TO UNLOCK';
+  }
+  // Check if already claimed at current milestone
+  const claimedMilestones = JSON.parse(localStorage.getItem('crystal_claimed_milestones') || '[]');
+  const alreadyClaimed = claimedMilestones.includes(currentMilestone.value);
+  return alreadyClaimed ? 'CLAIMED' : 'FREE CLAIM';
 });
 
 const accelerators = computed<AcceleratorProps[]>(() => [
@@ -51,7 +63,8 @@ const accelerators = computed<AcceleratorProps[]>(() => [
     boost: '+5.00%',
     status: crystalStatus.value,
     buttonText: crystalButtonText.value,
-    buttonIcon: props.weight < 10 ? 'lock' : undefined
+    buttonIcon: props.weight < 10 ? 'lock' : undefined,
+    currentWeight: props.weight
   },
   {
     type: 'stone',

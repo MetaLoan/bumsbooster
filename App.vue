@@ -63,7 +63,9 @@ const activeTab = ref<Tab>('hub');
 // Load weight from localStorage or use default
 const loadWeight = () => {
   const saved = localStorage.getItem('tge_weight');
-  return saved !== null ? parseFloat(saved) : 0;
+  if (saved === null) return 0;
+  const parsed = parseFloat(saved);
+  return isNaN(parsed) ? 0 : parsed;
 };
 const currentWeight = ref(loadWeight());
 
@@ -72,7 +74,11 @@ const setActiveTab = (tab: Tab) => {
 };
 
 const handleWeightIncrease = (boost: number) => {
-  currentWeight.value = Math.min(100, currentWeight.value + boost);
+  // Ensure currentWeight is a valid number
+  const current = isNaN(currentWeight.value) ? 0 : currentWeight.value;
+  // Ensure boost is a valid number
+  const validBoost = isNaN(boost) ? 0 : boost;
+  currentWeight.value = Math.min(100, current + validBoost);
   localStorage.setItem('tge_weight', String(currentWeight.value));
 };
 
