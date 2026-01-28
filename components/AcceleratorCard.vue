@@ -252,9 +252,8 @@ const handleMetalClaim = async (boost: number, claimType: '100' | '1') => {
   const storageKey = `accelerator_count_${props.type}`;
   localStorage.setItem(storageKey, String(claimCount.value));
   
-  // Emit weight increase (ensure boost is a valid number)
-  const validBoost = isNaN(boost) ? 0 : boost;
-  emit('weightIncrease', validBoost);
+  // Emit weight increase
+  emit('weightIncrease', boost);
   
   // Start cooldown
   localCooldown.value = true;
@@ -318,14 +317,10 @@ const handleClaim = async (customBoost?: number) => {
   const storageKey = `accelerator_count_${props.type}`;
   localStorage.setItem(storageKey, String(claimCount.value));
   
-  // Use custom boost value if provided, otherwise extract from boost string
-  let boostValue: number;
-  if (customBoost !== undefined) {
-    boostValue = isNaN(customBoost) ? 0 : customBoost;
-  } else {
-    const parsed = parseFloat(props.boost.replace(/[+%]/g, ''));
-    boostValue = isNaN(parsed) ? 0 : parsed;
-  }
+  // Use custom boost value if provided (must be a valid number), otherwise extract from boost string
+  const boostValue = (typeof customBoost === 'number' && !isNaN(customBoost))
+    ? customBoost 
+    : parseFloat(props.boost.replace(/[+%]/g, ''));
   emit('weightIncrease', boostValue);
   
   // Only start cooldown if not Crystal (Crystal doesn't have cooldown after claim)

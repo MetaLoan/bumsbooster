@@ -2,12 +2,12 @@
   <div class="px-4 mb-10">
     <div class="flex justify-between items-end mb-2">
       <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wide">TGE Weight Progress</h3>
-      <span class="text-2xl font-black text-primary drop-shadow-[0_0_5px_rgba(249,249,31,0.4)]">{{ (isNaN(weight) ? 0 : weight).toFixed(2) }}%</span>
+      <span class="text-2xl font-black text-primary drop-shadow-[0_0_5px_rgba(249,249,31,0.4)]">{{ safeWeight.toFixed(2) }}%</span>
     </div>
     
     <!-- Progress Bar -->
     <div class="relative h-8 bg-surface-dark rounded-full overflow-hidden border border-surface-border mb-4">
-      <div class="absolute top-0 left-0 h-full bg-primary shadow-[0_0_10px_rgba(249,249,31,0.5)] transition-all duration-500" :style="{ width: `${Math.min(100, isNaN(weight) ? 0 : weight)}%` }"></div>
+      <div class="absolute top-0 left-0 h-full bg-primary shadow-[0_0_10px_rgba(249,249,31,0.5)] transition-all duration-500" :style="{ width: `${Math.min(100, safeWeight)}%` }"></div>
       <!-- Markers: 10% intervals -->
       <div v-for="i in 9" :key="i" class="absolute top-0 bottom-0 w-0.5 bg-black/20 z-10" :style="{ left: `${i * 10}%` }"></div>
     </div>
@@ -55,17 +55,20 @@ const props = defineProps<{
 
 const skinClaimed = ref(false);
 
+// Safe weight value (fallback to 0 if NaN)
+const safeWeight = computed(() => {
+  return isNaN(props.weight) ? 0 : props.weight;
+});
+
 // Calculate next milestone (next 10% multiple)
 const nextMilestone = computed(() => {
-  const weight = isNaN(props.weight) ? 0 : props.weight;
-  const current = Math.floor(weight / 10);
+  const current = Math.floor(safeWeight.value / 10);
   return (current + 1) * 10;
 });
 
 // Check if current milestone is reached
 const isMilestoneReached = computed(() => {
-  const weight = isNaN(props.weight) ? 0 : props.weight;
-  return weight >= nextMilestone.value;
+  return safeWeight.value >= nextMilestone.value;
 });
 
 // Check if this is the first milestone (10%)
