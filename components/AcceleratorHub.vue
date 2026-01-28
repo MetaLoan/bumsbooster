@@ -39,7 +39,7 @@ const crystalStatus = computed(() => {
 });
 
 const crystalButtonText = computed(() => {
-  return props.weight >= 10 ? 'CLAIM' : '10% WEIGHT BOOST TO UNLOCK';
+  return props.weight >= 10 ? 'FREE CLAIM' : '10% WEIGHT BOOST TO UNLOCK';
 });
 
 const accelerators = computed<AcceleratorProps[]>(() => [

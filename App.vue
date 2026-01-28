@@ -12,15 +12,12 @@
           <p class="mt-2 text-sm text-white uppercase tracking-[0.2em] border border-surface-border px-3 py-1 rounded-full bg-surface-dark/50 backdrop-blur">
             Boost Your TGE Allocation with Accelerators!
           </p>
-          <div v-if="activeTab === 'hub'" class="mt-4 px-4 w-full max-w-md flex gap-2">
-            <button class="flex-1 bg-primary hover:bg-primary-dim text-black font-bold px-6 py-4 rounded-lg shadow-neon hover:shadow-neon-strong transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm">
+          <div v-if="activeTab === 'hub'" class="mt-4 px-4 w-full max-w-md">
+            <button class="w-full bg-primary hover:bg-primary-dim text-black font-bold px-6 py-4 rounded-lg shadow-neon hover:shadow-neon-strong transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm">
               <span>CHECK MY BUMS MEDALS</span>
               <img src="/jackpot.png" alt="" class="h-4 w-auto object-contain" />
               <img src="/icebums.png" alt="" class="h-4 w-auto object-contain" />
               <img src="/goldbums.png" alt="" class="h-4 w-auto object-contain" />
-            </button>
-            <button @click="resetClaimState" class="bg-surface-border hover:bg-surface-border/80 text-white font-bold px-4 py-4 rounded-lg transition-all text-xs uppercase">
-              Reset
             </button>
           </div>
         </div>
