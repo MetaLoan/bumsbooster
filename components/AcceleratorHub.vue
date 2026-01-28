@@ -66,7 +66,7 @@ const accelerators = computed<AcceleratorProps[]>(() => [
     type: 'metal',
     icon: 'hardware',
     title: 'Metal Accelerator',
-    description: 'Heavyweight boost. Requires verified wallet.',
+    description: 'Heavyweight boost.',
     boost: '+1.00%',
     status: 'available',
     buttonText: 'CLAIM 100'
