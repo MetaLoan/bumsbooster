@@ -55,21 +55,21 @@
         </div>
         
         <button 
-          :disabled="localCooldown || !isAvailable || isLocked"
+          :disabled="localCooldown || !isAvailable || isLocked || isClaimed"
           :class="[
             'text-sm font-bold py-2 px-4 rounded flex-1 flex items-center justify-center',
-            (isAvailable && !localCooldown && !isLocked)
+            (isAvailable && !localCooldown && !isLocked && !isClaimed)
               ? 'bg-white hover:bg-gray-200 text-black shadow-lg transition-colors clip-path-tech' 
               : 'bg-surface-border text-white cursor-not-allowed border border-white/5',
             (isCooldown || localCooldown) ? 'font-mono' : '',
-            type === 'metal' && !localCooldown && isAvailable ? 'gap-0' : 'gap-2'
+            type === 'metal' && !localCooldown && isAvailable && !isClaimed ? 'gap-0' : 'gap-2'
           ]"
           @click="handleClaim"
         >
           <span v-if="localCooldown || (buttonIcon && (isLocked || !isAvailable))" class="material-symbols-outlined text-[16px]">{{ localCooldown ? 'timer' : buttonIcon }}</span>
           <span class="flex items-center gap-0">
-            {{ localCooldown ? countdownText : buttonText }}
-            <img v-if="type === 'metal' && !localCooldown && isAvailable" src="/stars.png" alt="" class="h-4 w-auto object-contain ml-0" />
+            {{ isClaimed && type === 'crystal' ? 'CLAIMED' : (localCooldown ? countdownText : buttonText) }}
+            <img v-if="type === 'metal' && !localCooldown && isAvailable && !isClaimed" src="/stars.png" alt="" class="h-4 w-auto object-contain ml-0" />
           </span>
         </button>
       </div>
@@ -109,6 +109,16 @@ const loadClaimCount = () => {
 };
 const claimCount = ref(loadClaimCount());
 
+// Load claimed status for Crystal Accelerator
+const loadClaimedStatus = () => {
+  if (props.type === 'crystal') {
+    const storageKey = `accelerator_claimed_crystal`;
+    return localStorage.getItem(storageKey) === 'true';
+  }
+  return false;
+};
+const isClaimed = ref(loadClaimedStatus());
+
 // Get cooldown duration based on accelerator type
 const getCooldownDuration = () => {
   switch (props.type) {
@@ -125,7 +135,7 @@ const getCooldownDuration = () => {
 
 const isLocked = computed(() => props.status === 'locked');
 const isCooldown = computed(() => props.status === 'cooldown' || localCooldown.value);
-const isAvailable = computed(() => props.status === 'available' && !localCooldown.value);
+const isAvailable = computed(() => props.status === 'available' && !localCooldown.value && !isClaimed.value);
 
 const countdownText = computed(() => {
   const duration = getCooldownDuration();
@@ -144,6 +154,12 @@ const countdownText = computed(() => {
 
 const handleClaim = () => {
   if (isAvailable.value) {
+    // For Crystal Accelerator, mark as claimed
+    if (props.type === 'crystal') {
+      isClaimed.value = true;
+      localStorage.setItem('accelerator_claimed_crystal', 'true');
+    }
+    
     // Increase claim count
     claimCount.value++;
     const storageKey = `accelerator_count_${props.type}`;
@@ -153,38 +169,41 @@ const handleClaim = () => {
     const boostValue = parseFloat(props.boost.replace(/[+%]/g, ''));
     emit('weightIncrease', boostValue);
     
-    localCooldown.value = true;
-    const duration = getCooldownDuration();
-    countdownSeconds.value = duration;
-    
-    // Save to localStorage (only for long cooldowns)
-    if (duration >= 60) {
-      const storageKey = `accelerator_cooldown_${props.type}`;
-      const endTime = Date.now() + countdownSeconds.value * 1000;
-      localStorage.setItem(storageKey, String(endTime));
-    }
-    
-    // Start countdown
-    countdownInterval = setInterval(() => {
-      if (countdownSeconds.value > 0) {
-        countdownSeconds.value--;
-        // Update localStorage for long cooldowns
-        if (duration >= 60) {
-          const storageKey = `accelerator_cooldown_${props.type}`;
-          localStorage.setItem(storageKey, String(Date.now() + countdownSeconds.value * 1000));
-        }
-      } else {
-        localCooldown.value = false;
-        if (duration >= 60) {
-          const storageKey = `accelerator_cooldown_${props.type}`;
-          localStorage.removeItem(storageKey);
-        }
-        if (countdownInterval) {
-          clearInterval(countdownInterval);
-          countdownInterval = null;
-        }
+    // Only start cooldown if not Crystal (Crystal doesn't have cooldown after claim)
+    if (props.type !== 'crystal') {
+      localCooldown.value = true;
+      const duration = getCooldownDuration();
+      countdownSeconds.value = duration;
+      
+      // Save to localStorage (only for long cooldowns)
+      if (duration >= 60) {
+        const storageKey = `accelerator_cooldown_${props.type}`;
+        const endTime = Date.now() + countdownSeconds.value * 1000;
+        localStorage.setItem(storageKey, String(endTime));
       }
-    }, 1000);
+      
+      // Start countdown
+      countdownInterval = setInterval(() => {
+        if (countdownSeconds.value > 0) {
+          countdownSeconds.value--;
+          // Update localStorage for long cooldowns
+          if (duration >= 60) {
+            const storageKey = `accelerator_cooldown_${props.type}`;
+            localStorage.setItem(storageKey, String(Date.now() + countdownSeconds.value * 1000));
+          }
+        } else {
+          localCooldown.value = false;
+          if (duration >= 60) {
+            const storageKey = `accelerator_cooldown_${props.type}`;
+            localStorage.removeItem(storageKey);
+          }
+          if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+          }
+        }
+      }, 1000);
+    }
   }
 };
 

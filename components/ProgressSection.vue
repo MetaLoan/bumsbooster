@@ -31,22 +31,37 @@
         <p class="text-sm text-white font-medium">Unlock Crystal Accelerator & Skin</p>
       </div>
       <button 
-        :disabled="weight < 10"
+        :disabled="weight < 10 || skinClaimed"
         :class="[
           'text-xs font-bold px-3 py-1 rounded uppercase tracking-wide transition-all',
-          weight >= 10
+          (weight >= 10 && !skinClaimed)
             ? 'bg-primary hover:bg-primary-dim text-black shadow-neon cursor-pointer'
             : 'bg-black/30 text-gray-500 cursor-not-allowed'
         ]"
+        @click="handleClaimSkin"
       >
-        CLAIM SKIN
+        {{ skinClaimed ? 'CLAIMED' : 'CLAIM SKIN' }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
+
 defineProps<{
   weight: number;
 }>();
+
+const skinClaimed = ref(false);
+
+onMounted(() => {
+  const saved = localStorage.getItem('skin_claimed');
+  skinClaimed.value = saved === 'true';
+});
+
+const handleClaimSkin = () => {
+  skinClaimed.value = true;
+  localStorage.setItem('skin_claimed', 'true');
+};
 </script>
